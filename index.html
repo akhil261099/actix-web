@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flask Executable Runner</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            font-weight: bold;
+        }
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            padding: 8px;
+            margin-top: 5px;
+            font-size: 16px;
+        }
+        .form-group button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        .hidden {
+            display: none;
+        }
+        .error {
+            color: red;
+            margin-top: 10px;
+        }
+        .result {
+            margin-top: 20px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            background-color: #f4f4f4;
+            padding: 15px;
+            border: 1px solid #ddd;
+        }
+        #loading {
+            display: none;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Run Executable</h1>
+
+    <div class="form-group">
+        <label for="user-choice">Choose an action</label>
+        <select id="user-choice" onchange="toggleForm()">
+            <option value="">Select an action</option>
+            <option value="create">Create</option>
+            <option value="query">Execute</option>
+        </select>
+    </div>
+
+    <!-- Create Form -->
+    <div id="create-form" class="hidden">
+        <div class="form-group">
+            <label for="create_table_query">Create Table Query</label>
+            <textarea id="create_table_query" placeholder="Enter CREATE TABLE query"></textarea>
+        </div>
+
+        <div class="form-group">
+            <label for="insert_query">Insert Query</label>
+            <textarea id="insert_query" placeholder="Enter INSERT query"></textarea>
+        </div>
+    </div>
+
+    <!-- Execute Form -->
+    <div id="execute-form" class="hidden">
+        <div class="form-group">
+            <label for="execute-query">Execute Query</label>
+            <textarea id="execute-query" placeholder="Enter SELECT or other query"></textarea>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <button id="run-button" onclick="runExecutable()">Run</button>
+    </div>
+
+    <div id="error-message" class="error"></div>
+
+    <div id="loading" class="hidden">Processing...</div>
+
+    <div id="result" class="result hidden"></div>
+</div>
+
+<script>
+    // Function to toggle between Create and Execute form
+    function toggleForm() {
+        var userChoice = document.getElementById("user-choice").value;
+        var createForm = document.getElementById("create-form");
+        var executeForm = document.getElementById("execute-form");
+
+        createForm.classList.add("hidden");
+        executeForm.classList.add("hidden");
+
+        if (userChoice === "create") {
+            createForm.classList.remove("hidden");
+        } else if (userChoice === "query") {
+            executeForm.classList.remove("hidden");
+        }
+    }
+
+    // Function to handle the form submission and execute the backend logic
+    function runExecutable() {
+    var userChoice = document.getElementById("user-choice").value;
+
+    // Validate input
+    if (!userChoice) {
+        document.getElementById("error-message").innerText = "Please choose an action.";
+        return;
+    }
+
+    var data = {};
+
+    // Handle the 'create' action separately
+    if (userChoice === "create") {
+        var create_query = document.getElementById("create_table_query").value;
+        var insert_query = document.getElementById("insert_query").value;
+
+        if (!create_query || !insert_query) {
+            document.getElementById("error-message").innerText = "Create Table Query and Insert Query are required.";
+            return;
+        }
+
+        data.create_query = create_query;
+        data.insert_query = insert_query;
+        console.log(data);
+
+        // Make the request for creating a table
+        fetch("http://127.0.0.1:8080/create", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            var resultDiv = document.getElementById("result");
+            resultDiv.classList.remove("hidden");
+
+            if (data.error) {
+                resultDiv.innerHTML = "Error: " + data.error;
+            } else {
+                resultDiv.innerHTML = "Success: " + data.message;
+            }
+        })
+        .catch(error => {
+            document.getElementById("error-message").innerText = "An error occurred: " + error.message;
+        })
+        .finally(() => {
+            var loading = document.getElementById("loading");
+            loading.classList.add("hidden");
+        });
+
+    } 
+    // Handle the 'execute' action separately
+    else if (userChoice === "query") {
+        var query = document.getElementById("execute-query").value;
+
+        if (!query) {
+            document.getElementById("error-message").innerText = "Query is required.";
+            return;
+        }
+
+        data.query = query;
+
+        // Make the request for executing the query
+        fetch("http://127.0.0.1:8080/execute", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            var resultDiv = document.getElementById("result");
+            resultDiv.classList.remove("hidden");
+
+            if (data.error) {
+                resultDiv.innerHTML = "Error: " + data.error;
+            } else {
+                resultDiv.innerHTML = "Success: " + data.message;
+            }
+        })
+        .catch(error => {
+            document.getElementById("error-message").innerText = "An error occurred: " + error.message;
+        })
+        .finally(() => {
+            var loading = document.getElementById("loading");
+            loading.classList.add("hidden");
+        });
+    }
+}
+
+</script>
+
+</body>
+</html>
