@@ -1,6 +1,8 @@
 use actix_web::{web, HttpResponse, Error};
 use snowflake_connector_rs::{SnowflakeClient, SnowflakeAuthMethod, SnowflakeClientConfig};
 use serde::Deserialize;
+use dotenv::dotenv;
+use std::env;
 
 #[derive(Deserialize)]
 pub struct QueryPayload {
@@ -8,21 +10,37 @@ pub struct QueryPayload {
 }
 
 pub async fn execute_query(payload: web::Json<QueryPayload>) -> Result<HttpResponse, Error> {
+    dotenv().ok();
+    // Read the credentials from environment variables
+    let account = env::var("SNOWFLAKE_ACCOUNT").map_err(|e| {
+        actix_web::error::ErrorInternalServerError(format!("Missing SNOWFLAKE_ACCOUNT: {:?}", e))
+    })?;
+    let role = env::var("SNOWFLAKE_ROLE").ok();
+    let warehouse = env::var("SNOWFLAKE_WAREHOUSE").ok();
+    let database = env::var("SNOWFLAKE_DATABASE").ok();
+    let schema = env::var("SNOWFLAKE_SCHEMA").ok();
+    let user = env::var("SNOWFLAKE_USER").map_err(|e| {
+        actix_web::error::ErrorInternalServerError(format!("Missing SNOWFLAKE_USER: {:?}", e))
+    })?;
+    let password = env::var("SNOWFLAKE_PASSWORD").map_err(|e| {
+        actix_web::error::ErrorInternalServerError(format!("Missing SNOWFLAKE_PASSWORD: {:?}", e))
+    })?;
+   
+    // Create the Snowflake client
     let client = SnowflakeClient::new(
-        "akhil969",
-        SnowflakeAuthMethod::Password("zaq1ZAQ1@1".to_string()),
+        &user,
+        SnowflakeAuthMethod::Password(password),
         SnowflakeClientConfig {
-            account: "GMGNHXO-WM55675".to_string(), 
-            role: Some("ACCOUNTADMIN".to_string()),
-            warehouse: Some("COMPUTE_WH".to_string()),
-            database: Some("TRAININGDB".to_string()),
-            schema: Some("SALES".to_string()),
+            account,
+            role,
+            warehouse,
+            database,
+            schema,
             timeout: Some(std::time::Duration::from_secs(0)),
         },
     ).map_err(|e| {
         actix_web::error::ErrorInternalServerError(format!("Client creation failed: {:?}", e))
     })?;
-
     let session = client.create_session().await.map_err(|e| {
         actix_web::error::ErrorInternalServerError(format!("Session creation failed: {:?}", e))
     })?;
